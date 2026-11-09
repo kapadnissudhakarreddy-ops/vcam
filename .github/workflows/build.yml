@@ -1,0 +1,23 @@
+name: build
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: theos
+        run: |
+          git clone --recursive --depth 1 https://github.com/theos/theos.git $HOME/theos
+          git clone --depth 1 https://github.com/theos/sdks.git $HOME/theos/sdks
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+      - name: deps
+        run: brew install ldid xz || true
+      - name: build
+        run: |
+          make clean || true
+          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless || true
+          make package SUBPROJECTS="" FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deb
+          path: packages/*.deb
