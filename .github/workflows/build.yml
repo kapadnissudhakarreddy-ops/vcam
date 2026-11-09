@@ -3,19 +3,22 @@ on: [push, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
       - name: tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y make git curl xz-utils unzip fakeroot dpkg-dev clang libtinfo5 || sudo apt-get install -y libtinfo6
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq make git curl xz-utils unzip fakeroot dpkg-dev clang perl
+          clang --version | head -2
 
       - name: theos
         run: |
-          git clone --recursive --depth 1 https://github.com/theos/theos.git "$HOME/theos"
+          set -x
+          git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
           git clone --depth 1 https://github.com/theos/sdks.git "$HOME/theos/sdks"
+          ls "$HOME/theos/sdks" | head -20
           echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
 
       - name: ldid
