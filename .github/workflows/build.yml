@@ -1,23 +1,47 @@
-name: build
+name: deb
 on: [push, workflow_dispatch]
+
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y make git curl xz-utils unzip fakeroot dpkg-dev clang libtinfo5 || sudo apt-get install -y libtinfo6
+
       - name: theos
         run: |
-          git clone --recursive --depth 1 https://github.com/theos/theos.git $HOME/theos
-          git clone --depth 1 https://github.com/theos/sdks.git $HOME/theos/sdks
-          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
-      - name: deps
-        run: brew install ldid xz || true
+          git clone --recursive --depth 1 https://github.com/theos/theos.git "$HOME/theos"
+          git clone --depth 1 https://github.com/theos/sdks.git "$HOME/theos/sdks"
+          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+
+      - name: ldid
+        run: |
+          mkdir -p "$HOME/theos/bin"
+          cd /tmp
+          for u in \
+            "https://github.com/ProcursusTeam/ldid/releases/latest/download/ldid_linux_x86_64" \
+            "https://github.com/ProcursusTeam/ldid/releases/download/v2.1.5-procursus7/ldid_linux_x86_64"; do
+              if curl -fsSL "$u" -o ldid && [ -s ldid ]; then
+                chmod +x ldid && mv ldid "$HOME/theos/bin/ldid" && echo "ldid ok" && break
+              fi
+          done
+
       - name: build
         run: |
           make clean || true
-          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless || true
+          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless || \
           make package SUBPROJECTS="" FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+
+      - name: list
+        if: always()
+        run: ls -lh packages/ || true
+
       - uses: actions/upload-artifact@v4
         with:
           name: deb
           path: packages/*.deb
+          if-no-files-found: warn
